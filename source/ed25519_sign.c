@@ -1,7 +1,8 @@
 /* The MIT License (MIT)
  * 
  * Copyright (c) 2015 mehdi sotoodeh
- * 
+ * Copyright (c) 2018 kryptohash developers
+ *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the 
  * "Software"), to deal in the Software without restriction, including 
@@ -20,6 +21,10 @@
  * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Change log:
+ *  - 03/23/2018: Changes to support ED25519-BIP32.
+ *
  */
 
 #include "../include/external_calls.h"
@@ -366,6 +371,47 @@ void ed25519_CreateKeyPair(
     memcpy(privKey+32, pubKey, 32);
 }
 
+/* Generate public and extended private key associated with a master secret */
+void ed25519_CreateExtendedKeyPair(
+    unsigned char *pubKey,              /* OUT:[32 bytes] public key */
+    unsigned char *privKey,             /* OUT:[32 bytes] private key */
+    unsigned char *extPrivKey,          /* OUT:[64 bytes] extended private key */
+    const void *blinding,               /* IN: [optional] null or blinding context */
+    const unsigned char *sk)            /* IN: [32 bytes] master secret */
+{
+    U8 md[SHA512_DIGEST_LENGTH];
+    U_WORD t[K_WORDS];
+    SHA512_CTX H;
+    Affine_POINT Q;
+
+    memcpy(privKey, sk, 32);
+
+    /* [a:b] = H(sk) */
+    SHA512_Init(&H);
+    SHA512_Update(&H, sk, 32);
+    SHA512_Final(md, &H);
+    ecp_TrimSecretKey_BIP32(md);
+    memcpy(extPrivKey, md, SHA512_DIGEST_LENGTH);
+
+    ecp_BytesToWords(t, md);
+    edp_BasePointMultiply(&Q, t, blinding);
+    ed25519_PackPoint(pubKey, Q.y, Q.x[0]);
+}
+
+/* Derive public key associated with an extended private key */
+void ed25519_DerivePublicKeyfromPrivate(
+    unsigned char *pubKey,              /* OUT:[32 bytes] public key */
+    const unsigned char *privKey,       /* IN: [64 bytes] extended private key */
+    const void *blinding)               /* IN: [optional] null or blinding context */
+{
+    U_WORD t[K_WORDS];
+    Affine_POINT Q;
+
+    ecp_BytesToWords(t, privKey);
+    edp_BasePointMultiply(&Q, t, blinding);
+    ed25519_PackPoint(pubKey, Q.y, Q.x[0]);
+}
+
 /*
  * Generate message signature
  */
@@ -414,6 +460,55 @@ void ed25519_SignMessage(
     ecp_WordsToBytes(signature+32, t);  /* S part of signature */
 
     /* Clear sensitive data */
+    ecp_SetValue(a, 0);
+    ecp_SetValue(r, 0);
+}
+
+/*
+* Generate message signature
+*/
+void ed25519_SignMessage_BIP32(
+    unsigned char *signature,           /* OUT: [64 bytes] signature (R,S) */
+    const unsigned char *pubKey,        /*  IN: [32 bytes] public key */
+    const unsigned char *extPrivKey,    /*  IN: [64 bytes] extended private key */
+    const void *blinding,               /*  IN: [optional] null or blinding context */
+    const unsigned char *msg,           /*  IN: [msg_size bytes] message to sign */
+    size_t msg_size)
+{
+    SHA512_CTX H;
+    Affine_POINT R;
+    U_WORD a[K_WORDS], t[K_WORDS], r[K_WORDS];
+    U8 md[SHA512_DIGEST_LENGTH];
+
+    memcpy(md, extPrivKey, sizeof(md));
+    ecp_BytesToWords(a, md);
+
+    /* r = H(b + m) mod BPO */
+    SHA512_Init(&H);
+    SHA512_Update(&H, md + 32, 32);
+    SHA512_Update(&H, msg, msg_size);
+    SHA512_Final(md, &H);
+    eco_DigestToWords(r, md);
+    eco_Mod(r);                         /* r mod BPO */
+
+                                        /* R = r*P */
+    edp_BasePointMultiply(&R, r, blinding);
+    ed25519_PackPoint(signature, R.y, R.x[0]); /* R part of signature */
+
+                                               /* S = r + H(encoded(R) + pk + m) * a  mod BPO */
+    SHA512_Init(&H);
+    SHA512_Update(&H, signature, 32);   /* encoded(R) */
+    SHA512_Update(&H, pubKey, 32);      /* pk */
+    SHA512_Update(&H, msg, msg_size);   /* m */
+    SHA512_Final(md, &H);
+    eco_DigestToWords(t, md);
+
+    eco_MulReduce(t, t, a);             /* h()*a */
+    eco_AddReduce(t, t, r);
+    eco_Mod(t);
+    ecp_WordsToBytes(signature + 32, t);  /* S part of signature */
+
+                                          /* Clear sensitive data */
     ecp_SetValue(a, 0);
     ecp_SetValue(r, 0);
 }

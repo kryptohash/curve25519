@@ -240,7 +240,7 @@ void ed25519_Verify_Finish(void *ctx)
     Assumptions: qtable = pre-computed Q
     Calculate: point R = a*P + b*Q  where P is base point
 */
-static void edp_PolyPointMultiply(
+void edp_PolyPointMultiply(
     Affine_POINT *r, 
     const U_WORD *a, 
     const U_WORD *b, 

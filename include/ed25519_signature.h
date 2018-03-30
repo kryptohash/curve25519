@@ -1,6 +1,7 @@
 /* The MIT License (MIT)
  * 
  * Copyright (c) 2015 mehdi sotoodeh
+ * Copyright (c) 2018 kryptohash developers
  * 
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the 
@@ -20,6 +21,10 @@
  * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Change log:
+ *  - 03/23/2018: Changes to support ED25519-BIP32.
+ *
  */
 
 #ifndef __ed25519_signature_h__
@@ -43,6 +48,20 @@ void ed25519_CreateKeyPair(
     const void *blinding,               /* IN: [optional] null or blinding context */
     const unsigned char *sk);           /* IN: secret key (32 bytes) */
 
+/* Generate public and extended private key associated with a master secret */
+void ed25519_CreateExtendedKeyPair(
+    unsigned char *pubKey,              /* OUT:[32 bytes] public key */
+    unsigned char *privKey,             /* OUT:[32 bytes] private key */
+    unsigned char *extPrivKey,          /* OUT:[64 bytes] extended private key */
+    const void *blinding,               /* IN: [optional] null or blinding context */
+    const unsigned char *sk);           /* IN: [32 bytes] master secret */
+
+/* Derive public key associated with an extended private key */
+void ed25519_DerivePublicKeyfromPrivate(
+    unsigned char *pubKey,              /* OUT:[32 bytes] public key */
+    const unsigned char *privKey,       /* IN: [64 bytes] extended private key */
+    const void *blinding);              /* IN: [optional] null or blinding context */
+
 /* Generate message signature */
 void ed25519_SignMessage(
     unsigned char *signature,           /* OUT:[64 bytes] signature (R,S) */
@@ -50,6 +69,15 @@ void ed25519_SignMessage(
     const void *blinding,               /* IN: [optional] null or blinding context */
     const unsigned char *msg,           /* IN: [msg_size bytes] message to sign */
     size_t msg_size);                   /* IN: size of message */
+
+/* Generate message signature using Extended Private Key */
+void ed25519_SignMessage_BIP32(
+    unsigned char *signature,           /* OUT: [64 bytes] signature (R,S) */
+    const unsigned char *pubKey,        /*  IN: [32 bytes] public key */
+    const unsigned char *extPrivKey,    /*  IN: [64 bytes] extended private key */
+    const void *blinding,               /*  IN: [optional] null or blinding context */
+    const unsigned char *msg,           /*  IN: [msg_size bytes] message to sign */
+    size_t msg_size);
 
 void *ed25519_Blinding_Init(
     void *context,                      /* IO: null or ptr blinding context */

@@ -1,7 +1,8 @@
 /* The MIT License (MIT)
  * 
  * Copyright (c) 2015 mehdi sotoodeh
- * 
+ * Copyright (c) 2018 kryptohash developers
+ *
  * Permission is hereby granted, free of charge, to any person obtaining 
  * a copy of this software and associated documentation files (the 
  * "Software"), to deal in the Software without restriction, including 
@@ -20,15 +21,26 @@
  * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Change log:
+ *  - 03/23/2018: Changes to support ED25519-BIP32.
+ *
  */
 
 #include "curve25519_mehdi.h"
 
-/* Trim private key   */
+ /* Trim private key   */
 void ecp_TrimSecretKey(U8 *X)
 {
     X[0] &= 0xf8;
     X[31] = (X[31] | 0x40) & 0x7f;
+}
+
+/* Trim private key BIP32 */
+void ecp_TrimSecretKey_BIP32(U8 *X)
+{
+    X[0] &= 0xf8;
+    X[31] = (X[31] & 0x1f) | 0x40;  // ED25519-BIP32 requires keys such that the third highest bit of byte 31 is zero.
 }
 
 /* Convert big-endian byte array to little-endian byte array and vice versa */

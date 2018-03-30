@@ -31,6 +31,13 @@ void ecp_TrimSecretKey(U8 *X)
     X[31] = (X[31] | 0x40) & 0x7f;
 }
 
+/* Trim private key BIP32 */
+void ecp_TrimSecretKey_BIP32(U8 *X)
+{
+    X[0] &= 0xf8;
+    X[31] = (X[31] & 0x1f) | 0x40;  // ED25519-BIP32 requires keys such that the third highest bit of byte 31 is zero.
+}
+
 /* Convert big-endian byte array to little-endian byte array and vice versa */
 U8* ecp_ReverseByteOrder(OUT U8 *Y, IN const U8 *X)
 {
