@@ -95,7 +95,9 @@ void ecp_PointMultiply(OUT U8 *Q, IN const U8 *P, IN const U8 *K, IN int len);
 /* Set low and high bits */
 void ecp_TrimSecretKey(U8 *X);
 
-/* Set low and high bits */
+/* Set low and high bits for BIP32 */
+void mul_scalar_by_eight(U8* X);
+void div_scalar_by_eight(U8* X);
 void ecp_TrimSecretKey_BIP32(U8 *X);
 
 /* -- utils ----------------------------------------------------------------- */

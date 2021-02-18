@@ -37,6 +37,7 @@ const PA_POINT   _w_base_folding8[256];
 void edp_dualPointMultiply(Affine_POINT *r, const unsigned char *a, const unsigned char *b, const Affine_POINT *q);
 void * HMAC512(unsigned char *dataIn, size_t dataLen, unsigned char *key, unsigned char *dataOut);
 int amodl(BIGNUM *r, const BIGNUM *a);
+int aplusbmodl(BIGNUM* r, const unsigned char* a_str, const size_t a_len, const unsigned char* b_str, const size_t b_len);
 int m8add(BIGNUM *r, const unsigned char *a_str, const size_t a_len, const unsigned char *b_str, const size_t b_len);
 int addMod2pow256(BIGNUM *r, const unsigned char *a_str, const size_t a_len, const unsigned char *b_str, const size_t b_len);
 

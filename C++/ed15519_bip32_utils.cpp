@@ -81,7 +81,6 @@ void edp_dualPointMultiply(Affine_POINT *r, const unsigned char *a, const unsign
 }
 
 
-
 // r = a mod l,  where l = 2^252 + 27742317777372353535851937790883648493.
 int amodl(BIGNUM *r, const BIGNUM *a)
 {
@@ -114,6 +113,58 @@ int amodl(BIGNUM *r, const BIGNUM *a)
 
     return 0;
 }
+
+
+// r = 8 * ((a + b) mod l),  where l = 2^252 + 27742317777372353535851937790883648493.
+int aplusbmodl(BIGNUM* r, const unsigned char* a_str, const size_t a_len, const unsigned char* b_str, const size_t b_len)
+{
+    BIGNUM *a, *b, *e, *m, *s;
+    BN_CTX* ctx;
+    int ret = 0;
+
+    if (r == NULL || a_str == NULL)
+        return 1;
+
+    a = BN_lebin2bn(a_str, (int)a_len, NULL);
+    if (b_str == NULL || b_len == 0) {
+        b = BN_new();
+        BN_zero(b);
+    }
+    else {
+        b = BN_lebin2bn(b_str, (int)b_len, NULL);
+    }
+    e = BN_new();
+    m = BN_new();
+    s = BN_new();
+    ctx = BN_CTX_new();
+
+    if (a == NULL || b == NULL || e == NULL || m == NULL || s == NULL || ctx == NULL)
+        ret = 1;
+    else {
+        BN_add(e, a, b);
+        ret = amodl(m, e);
+        if (ret == 0) {
+            BN_dec2bn(&s, "8");
+            BN_mul(r, m, s, ctx);
+        }
+    }
+
+    if (a)
+        BN_free(a);
+    if (b)
+        BN_free(b);
+    if (e)
+        BN_free(e);
+    if (m)
+        BN_free(m);
+    if (s)
+        BN_free(s);
+    if (ctx)
+        BN_CTX_free(ctx);
+
+    return ret;
+}
+
 
 // r = 8*a + b
 int m8add(BIGNUM *r, const unsigned char *a_str, const size_t a_len, const unsigned char *b_str, const size_t b_len)

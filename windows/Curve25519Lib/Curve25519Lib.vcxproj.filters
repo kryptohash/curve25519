@@ -66,4 +66,7 @@
   <ItemGroup>
     <CustomBuild Include="..\..\custom\custom_code.bat" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
 </Project>

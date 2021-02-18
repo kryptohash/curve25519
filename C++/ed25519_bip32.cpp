@@ -108,7 +108,7 @@ void CED25519Priv_BIP32::derivePrivateChildKey(CHILDPriKey& privChild, const uns
     unsigned char buf[PrivateKeySize + 5];
     unsigned char pchIndex[4];
     const bool IsHardened = (idx & 0x80000000) != 0;
-    int len;
+    int len, ret;
 
     privChild.index = idx;
     for (int i = 0; i < sizeof(pchIndex); i++)
@@ -128,21 +128,29 @@ void CED25519Priv_BIP32::derivePrivateChildKey(CHILDPriKey& privChild, const uns
     len += 4;
     HMAC512(buf, len, (unsigned char*)m_ChainCode, hmac);
 
-    // Calculate Zleft = 8*zl + extPrivKeyLeft
-    BIGNUM *zl = BN_new();
-    m8add(zl, hmac, 28, m_ExtPrivKey, 32);
+    BIGNUM* modl = BN_new();
+    BIGNUM* zl = BN_new();
+
+    // Calculate Zleft = 8 * (( hmac[0..28] + ( extPrivKey[0..31] / 8 )) mod l ),
+    // where l = 2^252 + 27742317777372353535851937790883648493.
+    unsigned char secret[32];
+    memcpy(&secret, &m_ExtPrivKey, 32);
+    div_scalar_by_eight(secret);
+
+    ret = aplusbmodl(zl, hmac, 28, secret, 32);
     BN_bn2lebinpad(zl, privChild.childprivkey, 32);
 
-    // check if zl is divisible by the base order n. If so, mark child key as invalid.
-    BIGNUM *modl = BN_new();
-    amodl(modl, zl);
-    privChild.valid = BN_is_zero(modl) ? 0 : 1;
+    // Check if Zleft is divisible by the base order n. If so, the child key is invalid.
+    ret += amodl(modl, zl);
+    privChild.valid = (ret == 0 && BN_is_zero(modl) == 0) ? 1 : 0;
+
     BN_free(zl);
     BN_free(modl);
 
-    // Calculate Zright = (zr + extPrivKeyRight) mod 2^256
     BIGNUM *zr = BN_new();
-    addMod2pow256(zr, (hmac + 32), 32, (m_ExtPrivKey + 32), 32);
+    // Calculate Zright = ( hmac[32..63] + extPrivKey[32..63] ) mod l,
+    // where l = 2^252 + 27742317777372353535851937790883648493.
+    aplusbmodl(zr, (hmac + 32), 32, (m_ExtPrivKey + 32), 32);
     BN_bn2lebinpad(zr, (privChild.childprivkey + 32), 32);
     BN_free(zr);
 
@@ -268,7 +276,10 @@ int CED25519Pub_BIP32::DerivePublicKey(CHILDPubKey& pubChild, const unsigned int
     edp_dualPointMultiply(&T, ZL, one, &Q);
     ecp_EncodeInt(pubChild.childpubkey, T.y, (U8)(T.x[0] & 1));
 
-    pubChild.valid = (ecp_CmpNE(T.x, _w_Zero) || ecp_CmpNE(T.y, _w_One)) ? 0 : 1;
+    // Check that (x, y) is not equal to (0, 1)
+    bool bTx = ecp_CmpNE(T.x, _w_Zero);
+    bool bTy = ecp_CmpNE(T.y, _w_One);
+    pubChild.valid = (bTx == false && bTy == false) ? 0 : 1;
 
     // Derive the Child Chaincode
     buf[0] = 0x03;

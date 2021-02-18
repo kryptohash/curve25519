@@ -30,18 +30,46 @@
 #include "curve25519_mehdi.h"
 
  /* Trim private key   */
-void ecp_TrimSecretKey(U8 *X)
+void ecp_TrimSecretKey(U8* X)
 {
     X[0] &= 0xf8;
     X[31] = (X[31] | 0x40) & 0x7f;
 }
 
-/* Trim private key BIP32 */
+/* BIP32 support */
+
+/* Multiply scalar by 8. Needed for cofactor adjustment in BIP32 */
+void mul_scalar_by_eight(U8* X)
+{
+    U8 high = 0;
+    for (int i = 0; i < 32; i++)
+    {
+        U8 r = X[i] & 0b11100000; // carry bits
+        X[i] <<= 3; // multiply by 8
+        X[i] += high;
+        high = r >> 5;
+    }
+}
+
+/* Divide scalar by 8. Needed for cofactor adjustment in BIP32 */
+void div_scalar_by_eight(U8* X)
+{
+    U8 low = 0;
+    for (int i = 31; i >= 0; i--)
+    {
+        U8 r = X[i] & 0b00000111; // save remainder
+        X[i] >>= 3; // divide by 8
+        X[i] += low;
+        low = r << 5;
+    }
+}
+
 void ecp_TrimSecretKey_BIP32(U8 *X)
 {
     X[0] &= 0xf8;
     X[31] = (X[31] & 0x1f) | 0x40;  // ED25519-BIP32 requires keys such that the third highest bit of byte 31 is zero.
 }
+
 
 /* Convert big-endian byte array to little-endian byte array and vice versa */
 U8* ecp_ReverseByteOrder(OUT U8 *Y, IN const U8 *X)
