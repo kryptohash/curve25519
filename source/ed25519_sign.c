@@ -342,6 +342,7 @@ void ed25519_Blinding_Finish(
     {
         mem_clear (context, sizeof(EDP_BLINDING_CTX));
         mem_free (context);
+        context = NULL;
     }
 }
 

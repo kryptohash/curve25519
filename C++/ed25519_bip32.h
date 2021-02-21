@@ -26,6 +26,8 @@
 
 #include "ed25519.h"
 
+#define BIP32_ENABLE_BLINDING 1
+
 class CHILDPubKey
 {
 public:
@@ -69,8 +71,8 @@ private:
 class CHILDPriKey
 {
 public:
-    CHILDPriKey() { SetNull(); }
-    ~CHILDPriKey() { SetNull(); }
+    CHILDPriKey();
+    ~CHILDPriKey();
 
     enum { PublicKeySize = 32, PrivateKeySize = 64, ChainCodeSize = 32 };
 
@@ -85,6 +87,24 @@ public:
     unsigned char childpubkey[PublicKeySize];
     unsigned char childprivkey[PrivateKeySize];
     unsigned char childchaincode[ChainCodeSize];
+#ifdef BIP32_ENABLE_BLINDING
+    // Ugly hack to take advantage of the existing Blinding Context 'C' structure (please don't scold me).
+    // ToDo: Create a Class for the Blinding Context.
+    struct BLINDING_CTX {
+        unsigned int bl[8];
+        unsigned int zr[8];
+        struct PE_POINT {
+            unsigned int YpX[8];
+            unsigned int YmX[8];
+            unsigned int T2d[8];
+            unsigned int Z2[8];
+        } BP;
+    } *m_signing_blinding;
+
+    void SetSigningBlindingCTX();
+    void FreeSigningBlindingCTX();
+    bool IsSigningBlindingSet();
+#endif
 };
 
 class CED25519Priv_BIP32
@@ -120,6 +140,29 @@ private:
     unsigned char m_PrivKey[SecretSize];
     unsigned char m_ExtPrivKey[PrivateKeySize];
     unsigned char m_ChainCode[ChainCodeSize];
+
+#ifdef BIP32_ENABLE_BLINDING
+    // Ugly hack to take advantage of the existing Blinding Context 'C' structure (please don't scold me).
+    // ToDo: Create a Class for the Blinding Context.
+    struct BLINDING_CTX {
+        unsigned int bl[8];
+        unsigned int zr[8];
+        struct PE_POINT {
+            unsigned int YpX[8];
+            unsigned int YmX[8];
+            unsigned int T2d[8];
+            unsigned int Z2[8];
+        } BP;
+    } *m_genkey_blinding, *m_signing_blinding;
+
+    void setGenkeyBlindingCTX();
+    void setSigningBlindingCTX();
+    void freeGenkeyBlindingCTX();
+    void freeSigningBlindingCTX();
+    bool isGenkeyBlindingSet();
+    bool isSigningBlindingSet();
+#endif
 };
+
 
 #endif // __ed25519_bip32_h__
