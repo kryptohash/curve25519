@@ -87,6 +87,11 @@ public:
     unsigned char childpubkey[PublicKeySize];
     unsigned char childprivkey[PrivateKeySize];
     unsigned char childchaincode[ChainCodeSize];
+
+    void getExtPrivateKeyBytes(unsigned char* extPrivKey);
+    void getPublicKeyBytes(unsigned char* pubKey);
+    void getChainCodeBytes(unsigned char* chainCode);
+
 #ifdef BIP32_ENABLE_BLINDING
     // Ugly hack to take advantage of the existing Blinding Context 'C' structure (please don't scold me).
     // ToDo: Create a Class for the Blinding Context.
@@ -119,6 +124,7 @@ public:
     enum { SecretSize = 32, PublicKeySize = 32, PrivateKeySize = 64, SignatureBytes = 64, ChainCodeSize = 32 };
 
     void SetNull();
+    void getExtPrivateKeyBytes(unsigned char* extPrivKey);
     void getPublicKeyBytes(unsigned char *pubKey);
     void deriveRootChainCode();
     void getChainCodeBytes(unsigned char *chainCode);

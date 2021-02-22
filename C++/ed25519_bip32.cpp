@@ -120,6 +120,13 @@ void CED25519Priv_BIP32::SetNull()
     memset(m_ChainCode,  0, ChainCodeSize);
 }
 
+void CED25519Priv_BIP32::getExtPrivateKeyBytes(unsigned char* extPrivKey)
+{
+    if (extPrivKey) {
+        memcpy(extPrivKey, m_ExtPrivKey, PrivateKeySize);
+    }
+}
+
 void CED25519Priv_BIP32::getPublicKeyBytes(unsigned char *pubKey)
 {
     if (pubKey) {
@@ -212,7 +219,19 @@ void CED25519Priv_BIP32::derivePrivateChildKey(CHILDPriKey& privChild, const uns
     HMAC512(buf, len, (unsigned char*)m_ChainCode, hmac);
     memcpy(privChild.childchaincode, (hmac + 32), 32);
 
+#ifdef BIP32_ENABLE_BLINDING
+ #ifndef BIP32_ENABLE_STATIC_BLINDING
+    if (isGenkeyBlindingSet())
+        ed25519_DerivePublicKeyfromPrivate(privChild.childpubkey, privChild.childprivkey, m_genkey_blinding);
+    else
+        ed25519_DerivePublicKeyfromPrivate(privChild.childpubkey, privChild.childprivkey, NULL);
+ #else
+    ed25519_DerivePublicKeyfromPrivate(privChild.childpubkey, privChild.childprivkey, &edp_genkey_blinding);
+ #endif
+#else
     ed25519_DerivePublicKeyfromPrivate(privChild.childpubkey, privChild.childprivkey, NULL);
+#endif
+
 }
 
 void CED25519Priv_BIP32::SignMessage(const unsigned char *msg, unsigned int msg_size, unsigned char *signature)
@@ -228,7 +247,7 @@ void CED25519Priv_BIP32::SignMessage(const unsigned char *msg, unsigned int msg_
     else
         ed25519_SignMessage(signature, keyPair, NULL, msg, msg_size);
     freeSigningBlindingCTX();
-#else
+ #else
     ed25519_SignMessage(signature, keyPair, &edp_signature_blinding, msg, msg_size);
  #endif
 #else
@@ -356,7 +375,7 @@ int CED25519Pub_BIP32::DerivePublicKey(CHILDPubKey& pubChild, const unsigned int
     unsigned char pchIndex[4];
     int len;
 
-    if ((idx & 0x80000000) != 0)
+    if ((idx & 0x80000000) != 0) // Hardened Public Keys are not supported.
         return -1;
 
     pubChild.index = idx;
@@ -438,6 +457,27 @@ void CHILDPriKey::SignMessage_BIP32(const unsigned char *msg, unsigned int msg_s
 #else
     ed25519_SignMessage_BIP32(signature, childpubkey, childprivkey, NULL, msg, msg_size);
 #endif
+}
+
+void CHILDPriKey::getExtPrivateKeyBytes(unsigned char* extPrivKey)
+{
+    if (extPrivKey) {
+        memcpy(extPrivKey, childprivkey, PrivateKeySize);
+    }
+}
+
+void CHILDPriKey::getPublicKeyBytes(unsigned char* pubKey)
+{
+    if (pubKey) {
+        memcpy(pubKey, childpubkey, PublicKeySize);
+    }
+}
+
+void CHILDPriKey::getChainCodeBytes(unsigned char* chainCode)
+{
+    if (chainCode) {
+        memcpy(chainCode, childchaincode, ChainCodeSize);
+    }
 }
 
 #ifdef BIP32_ENABLE_BLINDING
